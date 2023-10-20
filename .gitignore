@@ -1,0 +1,6 @@
+.vs
+**/bin
+**/obj
+DebridLinkFrNET.Test/secret.txt
+publish.bat
+DebridLinkFrNET.sln.DotSettings.user

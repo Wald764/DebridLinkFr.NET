@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Wald764</Authors>
+    <Product>DebridLinkFr.NET</Product>
+    <Description>A DebridLinkFr API proxy for .NET Standard.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageId>DebridLinkFr.NET</PackageId>
+    <PackageProjectUrl>https://github.com/Wald764/DebridLinkFr.NET</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Wald764/DebridLinkFr.NET</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageTags>DebridLinkFr</PackageTags>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Converters\" />
+  </ItemGroup>
+
+</Project>
