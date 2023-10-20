@@ -22,10 +22,10 @@ namespace DebridLinkFrNET.Models
         public string? Id { get; set; }
 
         [JsonProperty("downloadUrl")]
-        public string? DownloadUrl { get; set; }
+        public string DownloadUrl { get; set; }
 
         [JsonProperty("downloadPercent")]
-        public int? DownloadPercent { get; set; }
+        public int DownloadPercent { get; set; }
     }
 
     public class Torrent
