@@ -110,5 +110,15 @@ namespace DebridLinkFrNET.Apis
 
             return response;
         }
+
+        /// <summary>
+        /// Deletes one or more hosted torrents from the seedbox.
+        /// </summary>
+        /// <param name="idTorrents">The IDs of the torrents to delete (comma-delimited or JSON).</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        public async Task DeleteAsync(string idTorrents, CancellationToken cancellationToken = default)
+        {
+            await _requests.DeleteRequestAsync<List<string>>($"seedbox/{idTorrents}/remove", true, null, cancellationToken);
+        }
     }
 }
