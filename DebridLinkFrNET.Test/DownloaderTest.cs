@@ -23,6 +23,18 @@ namespace DebridLinkFrNET.Test
         }
 
         [Fact]
+        public async Task AddMultiFile()
+        {
+            var client = new DebridLinkFrNETClient(Setup.ApiKey);
+
+            const String url = "url/0123"; //TODO: replace with a real url of a supported website with a multi file
+
+            var result = await client.Downloader.AddAsync(url);
+
+            Assert.True(result != null && result.Count > 0);
+        }
+
+        [Fact]
         public async Task GetById()
         {
             var client = new DebridLinkFrNETClient(Setup.ApiKey);
