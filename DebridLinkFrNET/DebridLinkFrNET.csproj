@@ -12,9 +12,9 @@
     <RepositoryUrl>https://github.com/Wald764/DebridLinkFr.NET</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>DebridLinkFr</PackageTags>
-    <Version>1.0.3</Version>
-    <AssemblyVersion>1.0.3.0</AssemblyVersion>
-    <FileVersion>1.0.3.0</FileVersion>
+    <Version>1.0.4</Version>
+    <AssemblyVersion>1.0.4.0</AssemblyVersion>
+    <FileVersion>1.0.4.0</FileVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
