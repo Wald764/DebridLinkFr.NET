@@ -2,17 +2,24 @@
 
 namespace DebridLinkFrNET;
 
+public interface IDebridLinkFrNETClient
+{
+    IAccountApi Account { get; }
+    ISeedboxApi Seedbox { get; }
+    IDownloaderApi Downloader { get; }
+}
+
 /// <summary>
 ///     The DebridLinkFrNET consumed the DebridLinkFr.com API.
 ///     Documentation about the API can be found here: https://docs.DebridLinkFr.com/
 /// </summary>
-public class DebridLinkFrNETClient
+public class DebridLinkFrNETClient : IDebridLinkFrNETClient
 {
     private readonly Store _store = new();
 
-    public AccountApi Account { get; }
-    public SeedboxApi Seedbox { get; }
-    public DownloaderApi Downloader { get; }
+    public IAccountApi Account { get; }
+    public ISeedboxApi Seedbox { get; }
+    public IDownloaderApi Downloader { get; }
 
     /// <summary>
     ///     Initialize the DebridLinkFrNET API.
