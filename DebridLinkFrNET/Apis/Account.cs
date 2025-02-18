@@ -5,16 +5,8 @@ using System.Text;
 
 namespace DebridLinkFrNET.Apis
 {
-    public class AccountApi
+    public interface IAccountApi
     {
-        private readonly Store _store;
-        private readonly Requests _requests;
-        internal AccountApi(HttpClient httpClient, Store store)
-        {
-            _store = store;
-            _requests = new Requests(httpClient, store);
-        }
-
         /// <summary>
         ///     Get user infos
         /// </summary>
@@ -25,6 +17,20 @@ namespace DebridLinkFrNET.Apis
         /// <returns>
         ///     The informations about the connected user
         /// </returns>
+        Task<UserInfos> Infos(CancellationToken cancellationToken = default);
+    }
+
+    public class AccountApi : IAccountApi
+    {
+        private readonly Store _store;
+        private readonly Requests _requests;
+        internal AccountApi(HttpClient httpClient, Store store)
+        {
+            _store = store;
+            _requests = new Requests(httpClient, store);
+        }
+
+        /// <inheritdoc />
         public async Task<UserInfos> Infos(CancellationToken cancellationToken = default)
         {
             return await _requests.GetRequestAsync<UserInfos>("account/infos", true, null, cancellationToken);

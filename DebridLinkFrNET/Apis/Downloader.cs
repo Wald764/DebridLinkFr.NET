@@ -8,7 +8,44 @@ namespace DebridLinkFrNET.Apis
     /// <summary>
     /// Provides methods for interacting with the DebridLink.fr downloader API.
     /// </summary>
-    public class DownloaderApi
+    public interface IDownloaderApi
+    {
+        /// <summary>
+        /// Gets a list of hosted files from the downloader.
+        /// </summary>
+        /// <param name="page">The page number (starts at 0).</param>
+        /// <param name="perPage">Number of items per page (minimum: 20, maximum: 50).</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        /// <returns>A list of hosted files.</returns>
+        Task<List<HostedFile>> ListAsync(int page = 0, int perPage = 50, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets a hosted file by its ID.
+        /// </summary>
+        /// <param name="idLink">The ID of the hosted file to retrieve.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        /// <returns>The hosted file with the specified ID, or null if not found.</returns>
+        Task<HostedFile> GetByIdAsync(string idLink, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Adds a hosted file to the downloader.
+        /// </summary>
+        /// <param name="url">The URL of the file to add.</param>
+        /// <param name="password">The optional password for the file.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        /// <returns>A list of hosted files, including the newly added file.</returns>
+        Task<List<HostedFile>> AddAsync(string url, string? password = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes one or more hosted files from the downloader.
+        /// </summary>
+        /// <param name="idLinks">The IDs of the hosted files to delete (comma-delimited or JSON).</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        Task DeleteAsync(string idLinks, CancellationToken cancellationToken = default);
+    }
+
+   /// <inheritdoc />
+    public class DownloaderApi : IDownloaderApi
     {
         private readonly Store _store;
         private readonly Requests _requests;
@@ -19,13 +56,7 @@ namespace DebridLinkFrNET.Apis
             _requests = new Requests(httpClient, store);
         }
 
-        /// <summary>
-        /// Gets a list of hosted files from the downloader.
-        /// </summary>
-        /// <param name="page">The page number (starts at 0).</param>
-        /// <param name="perPage">Number of items per page (minimum: 20, maximum: 50).</param>
-        /// <param name="cancellationToken">Cancellation token for the operation.</param>
-        /// <returns>A list of hosted files.</returns>
+        /// <inheritdoc />
         public async Task<List<HostedFile>> ListAsync(int page = 0, int perPage = 50, CancellationToken cancellationToken = default)
         {
             var parameters = new Dictionary<string, string>
@@ -39,12 +70,7 @@ namespace DebridLinkFrNET.Apis
             return response ?? new List<HostedFile>();
         }
 
-        /// <summary>
-        /// Gets a hosted file by its ID.
-        /// </summary>
-        /// <param name="idLink">The ID of the hosted file to retrieve.</param>
-        /// <param name="cancellationToken">Cancellation token for the operation.</param>
-        /// <returns>The hosted file with the specified ID, or null if not found.</returns>
+        /// <inheritdoc />
         public async Task<HostedFile> GetByIdAsync(string idLink, CancellationToken cancellationToken = default)
         {
             List<HostedFile> response = new List<HostedFile>();
@@ -61,13 +87,7 @@ namespace DebridLinkFrNET.Apis
             return foundHostedFile;
         }
 
-        /// <summary>
-        /// Adds a hosted file to the downloader.
-        /// </summary>
-        /// <param name="url">The URL of the file to add.</param>
-        /// <param name="password">The optional password for the file.</param>
-        /// <param name="cancellationToken">Cancellation token for the operation.</param>
-        /// <returns>A list of hosted files, including the newly added file.</returns>
+        /// <inheritdoc />
         public async Task<List<HostedFile>> AddAsync(string url, string? password = null, CancellationToken cancellationToken = default)
         {
             var data = new[]
@@ -90,11 +110,7 @@ namespace DebridLinkFrNET.Apis
             return list;
         }
 
-        /// <summary>
-        /// Deletes one or more hosted files from the downloader.
-        /// </summary>
-        /// <param name="idLinks">The IDs of the hosted files to delete (comma-delimited or JSON).</param>
-        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        /// <inheritdoc />
         public async Task DeleteAsync(string idLinks, CancellationToken cancellationToken = default)
         {
             await _requests.DeleteRequestAsync<List<string>>($"downloader/{idLinks}/remove", true, null, cancellationToken);
