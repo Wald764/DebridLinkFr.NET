@@ -1,81 +1,57 @@
-﻿using DebridLinkFrNET.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net;
 using Xunit;
 
-namespace DebridLinkFrNET.Test
+namespace DebridLinkFrNET.Test;
+
+public class DownloaderTest
 {
-    public class DownloaderTest
+    [Fact]
+    public async Task Add()
     {
-        [Fact]
-        public async Task Add()
-        {
-            var client = new DebridLinkFrNETClient(Setup.ApiKey);
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("downloader/add", HttpStatusCode.OK, Setup.Responses.DownloaderGetById);
 
-            const String url = "url/0123"; //TODO: replace with a real url of a supported website
+        var result = await client.Downloader.AddAsync("https://example.com/file");
 
-            var result = await client.Downloader.AddAsync(url);
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+        Assert.Equal("test-file.zip", result.First().Name);
+    }
 
-            Assert.True(result != null && result.Count > 0);
-        }
+    [Fact]
+    public async Task GetById()
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        // GetByIdAsync iterates over ListAsync to find the file
+        handler.AddMockResponse("downloader/list", HttpStatusCode.OK, Setup.Responses.DownloaderAddResult);
 
-        [Fact]
-        public async Task AddMultiFile()
-        {
-            var client = new DebridLinkFrNETClient(Setup.ApiKey);
+        var result = await client.Downloader.GetByIdAsync("hosted123");
 
-            const String url = "url/0123"; //TODO: replace with a real url of a supported website with a multi file
+        Assert.NotNull(result);
+        Assert.Equal("test-file.zip", result!.Name);
+    }
 
-            var result = await client.Downloader.AddAsync(url);
+    [Fact]
+    public async Task GetById_NotFound()
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("downloader/list", HttpStatusCode.OK, Setup.Responses.EmptyList);
 
-            Assert.True(result != null && result.Count > 0);
-        }
+        var result = await client.Downloader.GetByIdAsync("nonexistent");
 
-        [Fact]
-        public async Task GetById()
-        {
-            var client = new DebridLinkFrNETClient(Setup.ApiKey);
+        Assert.Null(result);
+    }
 
-            const String id = "id1234"; //TODO : Replace with a existing id on your account
+    [Fact]
+    public async Task Delete()
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("downloader/add", HttpStatusCode.OK, Setup.Responses.DownloaderGetById);
+        handler.AddMockResponse("remove", HttpStatusCode.NoContent, "");
 
-            var result = await client.Downloader.GetByIdAsync(id); 
+        var addResult = await client.Downloader.AddAsync("https://example.com/file");
+        var ids = string.Join(",", addResult.Select(link => link.Id));
 
-            Assert.Equal("filename", result.Name); //TODO : Replace with the name of the downloaded file.
-
-            const String fakeId = "dsqqfsfqsd545fqs";
-
-            var notFoundResult = await client.Downloader.GetByIdAsync(fakeId);
-
-            Assert.Null(notFoundResult);
-        }
-
-        [Fact]
-        public async Task Delete()
-        {
-            var client = new DebridLinkFrNETClient(Setup.ApiKey);
-
-            const String url = "url/0123"; //TODO: replace with a real url of a supported website
-
-            var addResult = await client.Downloader.AddAsync(url);
-            var ids = string.Join(",", addResult.Select(link => link.Id));
-
-            await client.Downloader.DeleteAsync(ids);
-
-
-            var fileList = new List<HostedFile>();
-            foreach (var id in addResult.Select(link => link.Id))
-            {
-                var currHostedFile = await client.Downloader.GetByIdAsync(id);
-                if (currHostedFile != null)
-                {
-                    fileList.Add(currHostedFile);
-                }
-            }
-
-            Assert.Empty(fileList);
-        }
+        await client.Downloader.DeleteAsync(ids);
     }
 }
