@@ -25,7 +25,7 @@ public static class Setup
                 ""accountType"": 1,
                 ""premiumLeft"": 2592000,
                 ""pts"": 100,
-                ""registerDate"": 1609459200
+                ""registerDate"": ""2021-01-01T00:00:00Z""
             }
         }";
 
@@ -44,7 +44,7 @@ public static class Setup
                     ""uploadRatio"": 0.5,
                     ""peersConnected"": 0,
                     ""created"": 1609459200,
-                    ""serverId"": 1,
+                    ""serverId"": ""1"",
                     ""wait"": false,
                     ""files"": [
                         {
@@ -76,7 +76,7 @@ public static class Setup
                 ""uploadRatio"": 0.5,
                 ""peersConnected"": 0,
                 ""created"": 1609459200,
-                ""serverId"": 1,
+                ""serverId"": ""1"",
                 ""wait"": false,
                 ""files"": [
                     {
@@ -96,7 +96,19 @@ public static class Setup
         public const string CachedResult = @"{
             ""success"": true,
             ""value"": {
-                ""dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"": true
+                ""dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"": {
+                    ""id"": ""cached1"",
+                    ""name"": ""Big Buck Bunny"",
+                    ""hashString"": ""dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"",
+                    ""status"": 6,
+                    ""totalSize"": 276445467,
+                    ""downloadPercent"": 100,
+                    ""created"": 1609459200,
+                    ""serverId"": ""1"",
+                    ""wait"": false,
+                    ""files"": [],
+                    ""trackers"": []
+                }
             }
         }";
 
@@ -111,7 +123,7 @@ public static class Setup
                     ""downloadUrl"": ""https://example.com/download/test-file.zip"",
                     ""host"": ""example.com"",
                     ""created"": 1609459200,
-                    ""expired"": 1612137600
+                    ""expired"": false
                 }
             ]
         }";
@@ -126,7 +138,7 @@ public static class Setup
                 ""downloadUrl"": ""https://example.com/download/test-file.zip"",
                 ""host"": ""example.com"",
                 ""created"": 1609459200,
-                ""expired"": 1612137600
+                ""expired"": false
             }
         }";
 
