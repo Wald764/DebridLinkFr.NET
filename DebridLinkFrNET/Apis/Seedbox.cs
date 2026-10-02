@@ -1,4 +1,5 @@
 ﻿using DebridLinkFrNET.Models;
+using System.Globalization;
 using System.Threading;
 
 namespace DebridLinkFrNET.Apis
@@ -76,12 +77,23 @@ namespace DebridLinkFrNET.Apis
         /// <inheritdoc />
         public async Task<List<Torrent>> ListAsync(string? ids = null, int page = -1, int perPage = -1, CancellationToken cancellationToken = default)
         {
-            var parameters = new Dictionary<string, string>
+            // Only send the filters the caller actually set: -1 / null mean "use the API defaults".
+            var parameters = new Dictionary<string, string>();
+
+            if (!string.IsNullOrWhiteSpace(ids))
             {
-                { "ids", ids ?? "" },
-                { "page", page.ToString() },
-                { "perPage", perPage.ToString() },
-            };
+                parameters.Add("ids", ids!);
+            }
+
+            if (page >= 0)
+            {
+                parameters.Add("page", page.ToString(CultureInfo.InvariantCulture));
+            }
+
+            if (perPage >= 0)
+            {
+                parameters.Add("perPage", perPage.ToString(CultureInfo.InvariantCulture));
+            }
 
             var response = await _requests.GetRequestAsync<List<Torrent>>("seedbox/list", true, parameters, cancellationToken);
 
@@ -102,8 +114,8 @@ namespace DebridLinkFrNET.Apis
             var data = new[]
             {
                 new KeyValuePair<string, string>("url", url),
-                new KeyValuePair<string, string>("wait", wait.ToString()),
-                new KeyValuePair<string, string>("async", async.ToString())
+                new KeyValuePair<string, string>("wait", wait ? "true" : "false"),
+                new KeyValuePair<string, string>("async", async ? "true" : "false")
             };
 
             var result = await _requests.PostRequestAsync<Torrent>("seedbox/add", data, true, cancellationToken);

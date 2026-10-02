@@ -98,4 +98,58 @@ public class SeedboxTest
 
         await client.Seedbox.DeleteAsync(addResult.Id);
     }
+
+    [Fact]
+    public async Task List_WithoutArguments_SendsNoQueryParameters()
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("seedbox/list", HttpStatusCode.OK, Setup.Responses.TorrentList);
+
+        await client.Seedbox.ListAsync();
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal("/api/v2/seedbox/list", request.Uri.AbsolutePath);
+        Assert.Equal("", request.Uri.Query);
+    }
+
+    [Fact]
+    public async Task List_WithIdsOnly_SendsOnlyIds()
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("seedbox/list", HttpStatusCode.OK, Setup.Responses.TorrentList);
+
+        await client.Seedbox.ListAsync("abc,def");
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("?ids=abc%2cdef", request.Uri.Query);
+    }
+
+    [Fact]
+    public async Task List_WithPagination_SendsPageAndPerPage()
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("seedbox/list", HttpStatusCode.OK, Setup.Responses.TorrentList);
+
+        await client.Seedbox.ListAsync(page: 0, perPage: 20);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("?page=0&perPage=20", request.Uri.Query);
+    }
+
+    [Theory]
+    [InlineData(false, false, "wait=false&async=false")]
+    [InlineData(true, false, "wait=true&async=false")]
+    [InlineData(false, true, "wait=false&async=true")]
+    public async Task AddTorrent_SendsLowercaseBooleans(bool wait, bool async, string expected)
+    {
+        var (client, handler) = Setup.CreateMockClient();
+        handler.AddMockResponse("seedbox/add", HttpStatusCode.OK, Setup.Responses.TorrentSingle);
+
+        await client.Seedbox.AddTorrentAsync("magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c", wait, async);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.EndsWith(expected, request.Body);
+    }
 }

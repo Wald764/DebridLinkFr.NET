@@ -90,6 +90,18 @@ internal class Requests
                                            IDictionary<String, String>? parameters,
                                            CancellationToken cancellationToken)
     {
+        var response = await RequestResponse<T>(url, requireAuthentication, requestType, data, parameters, cancellationToken).ConfigureAwait(false);
+
+        return response == null ? default : response.Value;
+    }
+
+    private async Task<ApiResponse<T>?> RequestResponse<T>(String url,
+                                                          Boolean requireAuthentication,
+                                                          RequestType requestType,
+                                                          HttpContent? data,
+                                                          IDictionary<String, String>? parameters,
+                                                          CancellationToken cancellationToken)
+    {
         var (statusCode, reasonPhrase, requestResult) = await Request(url, requireAuthentication, requestType, data, parameters, cancellationToken).ConfigureAwait(false);
 
         var isSuccessStatusCode = (Int32) statusCode is >= 200 and <= 299;
@@ -101,7 +113,7 @@ internal class Requests
                 throw CreateHttpException(statusCode, reasonPhrase);
             }
 
-            return default;
+            return null;
         }
 
         ApiResponse<T>? result;
@@ -153,7 +165,7 @@ internal class Requests
             throw CreateHttpException(statusCode, reasonPhrase);
         }
 
-        return result.Value;
+        return result;
     }
 
     private static DebridLinkFrException CreateHttpException(HttpStatusCode statusCode, String? reasonPhrase)
@@ -199,7 +211,18 @@ internal class Requests
     {
         return await Request<T>(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken).ConfigureAwait(false);
     }
-        
+
+    /// <summary>
+    /// Same as <see cref="GetRequestAsync{T}"/> but also returns the pagination block of the response.
+    /// </summary>
+    public async Task<(T Value, Pagination? Pagination)> GetPagedRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
+        where T : class, new()
+    {
+        var response = await RequestResponse<T>(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken).ConfigureAwait(false);
+
+        return (response?.Value ?? new T(), response?.Pagination);
+    }
+
     public async Task<T> DeleteRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
         where T : class, new()
     {

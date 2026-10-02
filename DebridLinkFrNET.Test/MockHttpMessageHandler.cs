@@ -8,7 +8,7 @@ public class MockHttpMessageHandler : HttpMessageHandler
     private readonly System.Collections.Concurrent.ConcurrentQueue<RecordedRequest> _requests = new();
 
     /// <summary>
-    /// Requests received by the handler, in order.
+    /// Requests received by the handler, in order, with their body already read.
     /// </summary>
     public IReadOnlyList<RecordedRequest> Requests => _requests.ToList();
 
@@ -22,11 +22,11 @@ public class MockHttpMessageHandler : HttpMessageHandler
         _responses[urlContains] = new MockResponse(statusCode, content);
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var url = request.RequestUri?.ToString() ?? "";
-
-        _requests.Enqueue(new RecordedRequest(request.Method, url, request.Headers.Authorization?.ToString()));
+        var body = request.Content != null ? await request.Content.ReadAsStringAsync(cancellationToken) : null;
+        _requests.Enqueue(new RecordedRequest(request.Method, url, request.Headers.Authorization?.ToString(), body));
 
         if (ExceptionToThrow != null)
         {
@@ -41,17 +41,20 @@ public class MockHttpMessageHandler : HttpMessageHandler
                 {
                     Content = new StringContent(mock.Content, System.Text.Encoding.UTF8, "application/json")
                 };
-                return Task.FromResult(response);
+                return response;
             }
         }
 
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
+        return new HttpResponseMessage(HttpStatusCode.NotFound)
         {
             Content = new StringContent("{\"success\":false,\"error\":\"not_found\"}", System.Text.Encoding.UTF8, "application/json")
-        });
+        };
     }
 
-    public record RecordedRequest(HttpMethod Method, string Url, string? Authorization);
+    public record RecordedRequest(HttpMethod Method, string Url, string? Authorization, string? Body = null)
+    {
+        public Uri Uri => new(Url);
+    }
 
     private record MockResponse(HttpStatusCode StatusCode, string Content);
 }
