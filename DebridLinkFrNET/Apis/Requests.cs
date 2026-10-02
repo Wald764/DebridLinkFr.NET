@@ -73,7 +73,11 @@ internal class Requests
             return (response.StatusCode, response.ReasonPhrase, null);
         }
 
+#if NET5_0_OR_GREATER
         var buffer = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+#else
+        var buffer = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+#endif
         var text = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
 
         return (response.StatusCode, response.ReasonPhrase, text);
