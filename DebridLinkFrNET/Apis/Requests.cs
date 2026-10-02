@@ -6,6 +6,7 @@ using System.Web;
 using DebridLinkFrNET.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 
 namespace DebridLinkFrNET;
 
@@ -30,7 +31,7 @@ internal class Requests
         _store = store;
     }
 
-    private async Task<String?> Request(String url,
+    private async Task<(HttpStatusCode StatusCode, String? ReasonPhrase, String? Text)> Request(String url,
                                         Boolean requireAuthentication, 
                                         RequestType requestType,
                                         HttpContent? data,
@@ -46,33 +47,132 @@ internal class Requests
             url = $"{url}?{parametersString}";
         }
 
-        _httpClient.DefaultRequestHeaders.Remove("Authorization");
-
-        if (requireAuthentication)
+        var method = requestType switch
         {
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_store.ApiKey}");
-        }
-
-        var response = requestType switch
-        {
-            RequestType.Get => await _httpClient.GetAsync(url, cancellationToken),
-            RequestType.Post => await _httpClient.PostAsync(url, data, cancellationToken),
-            RequestType.Put => await _httpClient.PutAsync(url, data, cancellationToken),
-            RequestType.Delete => await _httpClient.DeleteAsync(url, cancellationToken),
+            RequestType.Get => HttpMethod.Get,
+            RequestType.Post => HttpMethod.Post,
+            RequestType.Put => HttpMethod.Put,
+            RequestType.Delete => HttpMethod.Delete,
             _ => throw new ArgumentOutOfRangeException(nameof(requestType), requestType, null)
         };
 
-        var buffer = await response.Content.ReadAsByteArrayAsync();
-        var text = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
+        // The Authorization header is set on the request itself rather than on HttpClient.DefaultRequestHeaders:
+        // the HttpClient may be shared between threads, clients or the caller's own code.
+        using var request = new HttpRequestMessage(method, url);
+        request.Content = data;
+
+        if (requireAuthentication)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _store.ApiKey);
+        }
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.NoContent)
         {
-            text = null;
+            return (response.StatusCode, response.ReasonPhrase, null);
         }
-            
-        return text;
+
+#if NET5_0_OR_GREATER
+        var buffer = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+#else
+        var buffer = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+#endif
+        var text = Encoding.UTF8.GetString(buffer, 0, buffer.Length);
+
+        return (response.StatusCode, response.ReasonPhrase, text);
     }
-        
+
+    private async Task<T?> RequestValue<T>(String url,
+                                           Boolean requireAuthentication,
+                                           RequestType requestType,
+                                           HttpContent? data,
+                                           IDictionary<String, String>? parameters,
+                                           CancellationToken cancellationToken)
+    {
+        var response = await RequestResponse<T>(url, requireAuthentication, requestType, data, parameters, cancellationToken).ConfigureAwait(false);
+
+        return response == null ? default : response.Value;
+    }
+
+    private async Task<ApiResponse<T>?> RequestResponse<T>(String url,
+                                                          Boolean requireAuthentication,
+                                                          RequestType requestType,
+                                                          HttpContent? data,
+                                                          IDictionary<String, String>? parameters,
+                                                          CancellationToken cancellationToken)
+    {
+        var (statusCode, reasonPhrase, requestResult) = await Request(url, requireAuthentication, requestType, data, parameters, cancellationToken).ConfigureAwait(false);
+
+        var isSuccessStatusCode = (Int32) statusCode is >= 200 and <= 299;
+
+        if (requestResult == null)
+        {
+            if (!isSuccessStatusCode)
+            {
+                throw CreateHttpException(statusCode, reasonPhrase);
+            }
+
+            return null;
+        }
+
+        ApiResponse<T>? result;
+
+        try
+        {
+            result = JsonConvert.DeserializeObject<ApiResponse<T>>(requestResult, JsonSerializerSettings);
+        }
+        catch (JsonException ex)
+        {
+            if (!isSuccessStatusCode)
+            {
+                // Typically an HTML error page (proxy, maintenance...).
+                throw CreateHttpException(statusCode, reasonPhrase);
+            }
+
+            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}", ex);
+        }
+
+        if (result == null)
+        {
+            if (!isSuccessStatusCode)
+            {
+                throw CreateHttpException(statusCode, reasonPhrase);
+            }
+
+            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}",
+                                new Exception("Response was null"));
+        }
+
+        if (!result.Success)
+        {
+            if (!String.IsNullOrWhiteSpace(result.Error))
+            {
+                throw new DebridLinkFrException(result.Error!, result.Error!, statusCode);
+            }
+
+            if (!isSuccessStatusCode)
+            {
+                throw CreateHttpException(statusCode, reasonPhrase);
+            }
+
+            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}",
+                                new JsonSerializationException($"Unknown error. Response was: {result}"));
+        }
+
+        if (!isSuccessStatusCode)
+        {
+            throw CreateHttpException(statusCode, reasonPhrase);
+        }
+
+        return result;
+    }
+
+    private static DebridLinkFrException CreateHttpException(HttpStatusCode statusCode, String? reasonPhrase)
+    {
+        return new DebridLinkFrException($"Unexpected HTTP status {(Int32) statusCode} {reasonPhrase}".TrimEnd(), "httpError", statusCode);
+    }
+
     private async Task<T> Request<T>(String url,
                                      Boolean requireAuthentication,
                                      RequestType requestType,
@@ -81,49 +181,35 @@ internal class Requests
                                      CancellationToken cancellationToken)
         where T : class, new()
     {
-        var requestResult = await Request(url, requireAuthentication, requestType, data, parameters, cancellationToken);
+        var value = await RequestValue<T>(url, requireAuthentication, requestType, data, parameters, cancellationToken).ConfigureAwait(false);
 
-        if (requestResult == null)
+        return value ?? new T();
+    }
+
+    /// <summary>
+    ///     POST request whose "value" can be either a single object or an array of objects.
+    ///     The response is read only once, the request is never sent twice.
+    /// </summary>
+    public async Task<List<T>> PostRequestSingleOrListAsync<T>(String url, IEnumerable<KeyValuePair<String, String>>? data, Boolean requireAuthentication, CancellationToken cancellationToken)
+        where T : class
+    {
+        using var content = data != null ? new FormUrlEncodedContent(data) : null;
+        var value = await RequestValue<JToken>(url, requireAuthentication, RequestType.Post, content, null, cancellationToken).ConfigureAwait(false);
+
+        var serializer = JsonSerializer.Create(JsonSerializerSettings);
+
+        return value switch
         {
-            return new T();
-        }
-
-        try
-        {
-            var result = JsonConvert.DeserializeObject<ApiResponse<T>>(requestResult, JsonSerializerSettings);
-
-            if (result == null)
-            {
-                throw new Exception("Response was null");
-            }
-
-            if (!result.Success)
-            {
-                if (result.Error != null && !String.IsNullOrWhiteSpace(result.Error))
-                {
-                    throw new DebridLinkFrException(result.Error!, result.Error!);
-                }
-
-                throw new JsonSerializationException($"Unknown error. Response was: {result}");
-            }
-
-            if (result.Value == null)
-            {
-                return new T();
-            }
-
-            return result.Value;
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}", ex);
-        }
+            null or { Type: JTokenType.Null } => new List<T>(),
+            JArray array => array.ToObject<List<T>>(serializer) ?? new List<T>(),
+            _ => value.ToObject<T>(serializer) is { } single ? new List<T> { single } : new List<T>()
+        };
     }
         
     public async Task<T> GetRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
         where T : class, new()
     {
-        return await Request<T>(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken);
+        return await Request<T>(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -132,52 +218,22 @@ internal class Requests
     public async Task<(T Value, Pagination? Pagination)> GetPagedRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
         where T : class, new()
     {
-        var requestResult = await Request(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken);
+        var response = await RequestResponse<T>(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken).ConfigureAwait(false);
 
-        if (requestResult == null)
-        {
-            return (new T(), null);
-        }
-
-        ApiResponse<T>? result;
-        try
-        {
-            result = JsonConvert.DeserializeObject<ApiResponse<T>>(requestResult, JsonSerializerSettings);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}", ex);
-        }
-
-        if (result == null)
-        {
-            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}");
-        }
-
-        if (!result.Success)
-        {
-            if (!String.IsNullOrWhiteSpace(result.Error))
-            {
-                throw new DebridLinkFrException(result.Error!, result.Error!);
-            }
-
-            throw new Exception($"Unknown error. Response was: {requestResult}");
-        }
-
-        return (result.Value ?? new T(), result.Pagination);
+        return (response?.Value ?? new T(), response?.Pagination);
     }
 
     public async Task<T> DeleteRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
         where T : class, new()
     {
-        return await Request<T>(url, requireAuthentication, RequestType.Delete, null, parameters, cancellationToken);
+        return await Request<T>(url, requireAuthentication, RequestType.Delete, null, parameters, cancellationToken).ConfigureAwait(false);
     }
         
     public async Task<T> PostRequestAsync<T>(String url, IEnumerable<KeyValuePair<String, String>>? data, Boolean requireAuthentication, CancellationToken cancellationToken)
         where T : class, new()
     {
         var content = data != null ? new FormUrlEncodedContent(data) : null;
-        return await Request<T>(url, requireAuthentication, RequestType.Post, content, null, cancellationToken);
+        return await Request<T>(url, requireAuthentication, RequestType.Post, content, null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<T> PostFileRequestAsync<T>(String url, Byte[] file, Boolean requireAuthentication, CancellationToken cancellationToken)
@@ -196,7 +252,7 @@ internal class Requests
 
         multipartFormDataContent.Add(fileContent);
             
-        return await Request<T>(url, requireAuthentication, RequestType.Post, multipartFormDataContent, null, cancellationToken);
+        return await Request<T>(url, requireAuthentication, RequestType.Post, multipartFormDataContent, null, cancellationToken).ConfigureAwait(false);
     }
         
     private enum RequestType

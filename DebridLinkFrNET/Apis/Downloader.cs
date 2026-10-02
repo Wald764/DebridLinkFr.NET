@@ -134,18 +134,8 @@ namespace DebridLinkFrNET.Apis
                 new KeyValuePair<string, string>("password", password ?? string.Empty),
             };
 
-            var list = new List<HostedFile>();
-            try
-            {
-                var result = await _requests.PostRequestAsync<HostedFile>("downloader/add", data, true, cancellationToken);
-                list.Add(result);
-            }
-            catch 
-            {
-                list.AddRange(await _requests.PostRequestAsync<List<HostedFile>>("downloader/add", data, true, cancellationToken));
-            }
-            
-            return list;
+            // downloader/add returns a single object for a simple link and an array for a multi-file link.
+            return await _requests.PostRequestSingleOrListAsync<HostedFile>("downloader/add", data, true, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc />

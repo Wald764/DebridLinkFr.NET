@@ -5,11 +5,17 @@ namespace DebridLinkFrNET.Test;
 public class MockHttpMessageHandler : HttpMessageHandler
 {
     private readonly Dictionary<string, MockResponse> _responses = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<RecordedRequest> _requests = new();
 
     /// <summary>
     /// Requests received by the handler, in order, with their body already read.
     /// </summary>
-    public List<RecordedRequest> Requests { get; } = new();
+    public IReadOnlyList<RecordedRequest> Requests => _requests.ToList();
+
+    /// <summary>
+    /// When set, every request throws this exception (simulates a network failure).
+    /// </summary>
+    public Exception? ExceptionToThrow { get; set; }
 
     public void AddMockResponse(string urlContains, HttpStatusCode statusCode, string content)
     {
@@ -20,7 +26,12 @@ public class MockHttpMessageHandler : HttpMessageHandler
     {
         var url = request.RequestUri?.ToString() ?? "";
         var body = request.Content != null ? await request.Content.ReadAsStringAsync(cancellationToken) : null;
-        Requests.Add(new RecordedRequest(request.Method, request.RequestUri!, body));
+        _requests.Enqueue(new RecordedRequest(request.Method, url, request.Headers.Authorization?.ToString(), body));
+
+        if (ExceptionToThrow != null)
+        {
+            throw ExceptionToThrow;
+        }
 
         foreach (var (key, mock) in _responses)
         {
@@ -40,7 +51,10 @@ public class MockHttpMessageHandler : HttpMessageHandler
         };
     }
 
-    public record RecordedRequest(HttpMethod Method, Uri Uri, string? Body);
+    public record RecordedRequest(HttpMethod Method, string Url, string? Authorization, string? Body = null)
+    {
+        public Uri Uri => new(Url);
+    }
 
     private record MockResponse(HttpStatusCode StatusCode, string Content);
 }
