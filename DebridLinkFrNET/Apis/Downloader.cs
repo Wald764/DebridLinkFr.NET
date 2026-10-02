@@ -1,6 +1,7 @@
 ﻿using DebridLinkFrNET.Models;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace DebridLinkFrNET.Apis
@@ -73,18 +74,55 @@ namespace DebridLinkFrNET.Apis
         /// <inheritdoc />
         public async Task<HostedFile> GetByIdAsync(string idLink, CancellationToken cancellationToken = default)
         {
-            List<HostedFile> response = new List<HostedFile>();
-            HostedFile? foundHostedFile = null;
-            int page = 0; 
+            const int perPage = 50;
+            var page = 0;
+            var visitedPages = new HashSet<int>();
+            string? previousFirstId = null;
 
-            do
+            // Walks downloader/list page by page, following pagination.next so we stop on the last page
+            // instead of looping when the API keeps returning items for out-of-range pages.
+            while (visitedPages.Add(page))
             {
-                response = await ListAsync(page);
-                foundHostedFile = response.FirstOrDefault(hostedFile => hostedFile.Id == idLink);
-                page++;
-            } while (response.Count > 0 && foundHostedFile == null);
+                cancellationToken.ThrowIfCancellationRequested();
 
-            return foundHostedFile;
+                var parameters = new Dictionary<string, string>
+                {
+                    { "page", page.ToString(CultureInfo.InvariantCulture) },
+                    { "perPage", perPage.ToString(CultureInfo.InvariantCulture) },
+                };
+
+                var (files, pagination) = await _requests.GetPagedRequestAsync<List<HostedFile>>("downloader/list", true, parameters, cancellationToken);
+
+                var found = files.FirstOrDefault(hostedFile => hostedFile.Id == idLink);
+                if (found != null)
+                {
+                    return found;
+                }
+
+                if (pagination != null)
+                {
+                    if (pagination.Next <= page)
+                    {
+                        break;
+                    }
+
+                    page = pagination.Next;
+                }
+                else
+                {
+                    // No pagination block: a short page, or the same page served again, is the last one.
+                    var firstId = files.FirstOrDefault()?.Id;
+                    if (files.Count < perPage || firstId == previousFirstId)
+                    {
+                        break;
+                    }
+
+                    previousFirstId = firstId;
+                    page++;
+                }
+            }
+
+            return null!;
         }
 
         /// <inheritdoc />

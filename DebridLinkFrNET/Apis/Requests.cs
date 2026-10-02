@@ -125,7 +125,48 @@ internal class Requests
     {
         return await Request<T>(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken);
     }
-        
+
+    /// <summary>
+    /// Same as <see cref="GetRequestAsync{T}"/> but also returns the pagination block of the response.
+    /// </summary>
+    public async Task<(T Value, Pagination? Pagination)> GetPagedRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
+        where T : class, new()
+    {
+        var requestResult = await Request(url, requireAuthentication, RequestType.Get, null, parameters, cancellationToken);
+
+        if (requestResult == null)
+        {
+            return (new T(), null);
+        }
+
+        ApiResponse<T>? result;
+        try
+        {
+            result = JsonConvert.DeserializeObject<ApiResponse<T>>(requestResult, JsonSerializerSettings);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}", ex);
+        }
+
+        if (result == null)
+        {
+            throw new Exception($"Unable to deserialize DebridLinkFr API response to {typeof(T).Name}. Response was: {requestResult}");
+        }
+
+        if (!result.Success)
+        {
+            if (!String.IsNullOrWhiteSpace(result.Error))
+            {
+                throw new DebridLinkFrException(result.Error!, result.Error!);
+            }
+
+            throw new Exception($"Unknown error. Response was: {requestResult}");
+        }
+
+        return (result.Value ?? new T(), result.Pagination);
+    }
+
     public async Task<T> DeleteRequestAsync<T>(String url, Boolean requireAuthentication, IDictionary<String, String>? parameters, CancellationToken cancellationToken)
         where T : class, new()
     {
