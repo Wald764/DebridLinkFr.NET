@@ -25,13 +25,8 @@ public class DebridLinkFrNETClient : IDebridLinkFrNETClient
     ///     Initialize the DebridLinkFrNET API.
     ///     To use authentication provide the key for your user.
     /// </summary>
-    /// <param name="agent">
-    ///     You'll also need to identify your software or script by a meaningful agent parameter (your software user-agent).
-    ///     Try to make it explicit, like the name of your software, script or library.
-    /// </param>
     /// <param name="apiKey">
-    ///     The DebridLinkFr API uses API keys to authenticate requests. You can view and manage your API keys in your Apikey dashboard,
-    ///     (https://DebridLinkFr.com/apikeys) or generate them remotely (with user action) through the PIN flow.
+    ///     The Debrid-Link API key used to authenticate requests. It can be generated from your Debrid-Link account.
     /// </param>
     /// <param name="httpClient">
     ///     Optional HttpClient if you want to use your own HttpClient.
