@@ -10,11 +10,12 @@
     <PackageId>DebridLinkFr.NET</PackageId>
     <PackageProjectUrl>https://github.com/Wald764/DebridLinkFr.NET</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Wald764/DebridLinkFr.NET</RepositoryUrl>
-    <RepositoryType>GitHub</RepositoryType>
-    <PackageTags>DebridLinkFr</PackageTags>
-    <Version>2.0.1</Version>
-    <AssemblyVersion>2.0.1.0</AssemblyVersion>
-    <FileVersion>2.0.1.0</FileVersion>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>DebridLinkFr;debrid-link;debrid;api;client</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Version>2.1.0</Version>
+    <AssemblyVersion>2.1.0.0</AssemblyVersion>
+    <FileVersion>2.1.0.0</FileVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -24,6 +25,10 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

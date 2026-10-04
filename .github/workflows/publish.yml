@@ -34,6 +34,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Check release tag matches package version
+      run: |
+        TAG="${GITHUB_REF_NAME#v}"
+        VERSION=$(grep -oPm1 '(?<=<Version>)[^<]+' DebridLinkFrNET/DebridLinkFrNET.csproj)
+        if [ "$TAG" != "$VERSION" ]; then
+          echo "::error::Release tag '$GITHUB_REF_NAME' does not match <Version>$VERSION</Version> in the csproj."
+          exit 1
+        fi
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
